@@ -3,9 +3,11 @@ package redis
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/njohanne/testRiDom/internal/config"
+	"github.com/njohanne/testRiDom/internal/model"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -14,13 +16,8 @@ type Repository struct {
 }
 
 func NewClient(cfg config.Redis) (*Repository, error) {
-	if err := validateCfg(cfg); err != nil {
-		return nil, err
-	}
-
-	addrStr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	client := redis.NewClient(&redis.Options{
-		Addr:     addrStr,
+		Addr:     net.JoinHostPort(cfg.Host, cfg.Port),
 		Password: cfg.Password,
 		DB:       0,
 	})
@@ -30,26 +27,17 @@ func NewClient(cfg config.Redis) (*Repository, error) {
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
-		client.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("failed to connect to redis: %w", err)
 	}
 
 	return &Repository{client: client}, nil
 }
 
-func validateCfg(cfg config.Redis) error {
-	if cfg.Host == "" {
-		return fmt.Errorf("redis host is empty")
-	}
-	if cfg.Port == "" {
-		return fmt.Errorf("redis port is empty")
-	}
-	return nil
+func (r *Repository) Close() {
+	_ = r.client.Close()
 }
 
-func (r *Repository) Close() error {
-	if r.client != nil {
-		return r.client.Close()
-	}
+func (r *Repository) SaveEvent(msg model.Event) error {
 	return nil
 }

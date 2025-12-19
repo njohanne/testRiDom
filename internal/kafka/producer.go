@@ -2,9 +2,12 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"time"
 
+	"github.com/njohanne/testRiDom/internal/model"
 	"github.com/segmentio/kafka-go"
 
 	"github.com/njohanne/testRiDom/internal/config"
@@ -26,15 +29,14 @@ func (p *Producer) Connect() error {
 		return nil
 	}
 
-	if err := p.validateCfg(); err != nil {
-		return err
+	brokerAddr := net.JoinHostPort(p.cfg.Host, p.cfg.Port)
+
+	conn, err := kafka.Dial("tcp", brokerAddr)
+	if err != nil {
+		return fmt.Errorf("failed to kafka broker unreachable: %w", err)
 	}
 
-	brokerAddr := fmt.Sprintf("%s:%s", p.cfg.Host, p.cfg.Port)
-
-	if err := p.pingBroker(brokerAddr); err != nil {
-		return err
-	}
+	defer conn.Close()
 
 	p.writer = &kafka.Writer{Addr: kafka.TCP(brokerAddr),
 		Topic:    p.cfg.Topic,
@@ -43,49 +45,28 @@ func (p *Producer) Connect() error {
 	return nil
 }
 
-func (p *Producer) pingBroker(address string) error {
-	conn, err := kafka.Dial("tcp", address)
-	if err != nil {
-		return fmt.Errorf("failed to kafka broker unreachable: %w", err)
-	}
-
-	defer conn.Close()
-	return nil
+func (p *Producer) Close() {
+	_ = p.writer.Close()
 }
 
-func (p *Producer) validateCfg() error {
-	if p.cfg.Host == "" {
-		return fmt.Errorf("failed to kafka host is empty")
-	}
-	if p.cfg.Port == "" {
-		return fmt.Errorf("failed to kafka port is empty")
-	}
-	if p.cfg.Topic == "" {
-		return fmt.Errorf("failed to kafka topic is empty")
-	}
-	return nil
-}
-
-func (p *Producer) Close() error {
-	if p.writer != nil {
-		return p.writer.Close()
-	}
-	return nil
-}
-
-func (p *Producer) SendMessage(message string) error {
+func (p *Producer) SendMessage(message *model.Event) error {
 	if p.writer == nil {
 		return fmt.Errorf("failed to kafka producer has not been initialized")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
+	msgJSON, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event: %w", err)
+	}
+
 	msg := kafka.Message{
-		Value: []byte(message),
+		Value: msgJSON,
 		Time:  time.Now(),
 	}
 
-	err := p.writer.WriteMessages(ctx, msg)
+	err = p.writer.WriteMessages(ctx, msg)
 	if err != nil {
 		return fmt.Errorf("failed to kafka send message: %w", err)
 	}

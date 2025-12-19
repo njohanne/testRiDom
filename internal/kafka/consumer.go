@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/segmentio/kafka-go"
 
@@ -23,15 +24,13 @@ func (c *Consumer) Connect() error {
 		return nil
 	}
 
-	if err := c.validateCfg(); err != nil {
-		return err
-	}
+	brokerAddr := net.JoinHostPort(c.cfg.Host, c.cfg.Port)
 
-	brokerAddr := fmt.Sprintf("%s:%s", c.cfg.Host, c.cfg.Port)
-
-	if err := c.pingBroker(brokerAddr); err != nil {
-		return err
+	conn, err := kafka.Dial("tcp", brokerAddr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to kafka: %v", err)
 	}
+	defer conn.Close()
 
 	readerCfg := kafka.ReaderConfig{
 		Brokers:        []string{brokerAddr},
@@ -46,35 +45,8 @@ func (c *Consumer) Connect() error {
 	return nil
 }
 
-func (c *Consumer) validateCfg() error {
-	if c.cfg.Host == "" {
-		return fmt.Errorf("failed to kafka host is empty")
-	}
-
-	if c.cfg.Port == "" {
-		return fmt.Errorf("failed to kafka port is empty")
-	}
-
-	if c.cfg.Topic == "" {
-		return fmt.Errorf("failed to kafka topic is empty")
-	}
-	return nil
-}
-
-func (c *Consumer) pingBroker(address string) error {
-	conn, err := kafka.Dial("tcp", address)
-	if err != nil {
-		return fmt.Errorf("failed to connect to kafka: %v", err)
-	}
-	defer conn.Close()
-	return nil
-}
-
-func (c *Consumer) Close() error {
-	if c.reader != nil {
-		return c.reader.Close()
-	}
-	return nil
+func (c *Consumer) Close() {
+	_ = c.reader.Close()
 }
 
 func (c *Consumer) ReadMessage(ctx context.Context) (kafka.Message, error) {
