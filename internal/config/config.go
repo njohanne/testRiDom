@@ -49,19 +49,22 @@ func MustLoad() *Config {
 	return cfg
 }
 
-func (c *Config) validateConfig() error {
+func (c *Config) ValidateConfig() error {
 	err := c.Kafka.validate()
 	if err != nil {
 		return err
 	}
+
 	err = c.Postgres.validate()
 	if err != nil {
 		return err
 	}
+
 	err = c.Redis.validateCfg()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -77,6 +80,7 @@ func (k *Kafka) validate() error {
 	if k.Topic == "" {
 		return fmt.Errorf("failed to kafka topic is empty")
 	}
+
 	return nil
 }
 
@@ -84,18 +88,23 @@ func (p *Postgres) validate() error {
 	if p.Username == "" {
 		return fmt.Errorf("postgres username is empty")
 	}
+
 	if p.Password == "" {
 		return fmt.Errorf("postgres password is empty")
 	}
+
 	if p.Host == "" {
 		return fmt.Errorf("postgres host is empty")
 	}
+
 	if p.Port == "" {
 		return fmt.Errorf("postgres port is empty")
 	}
+
 	if p.Database == "" {
 		return fmt.Errorf("postgres database is empty")
 	}
+
 	return nil
 }
 
@@ -103,8 +112,10 @@ func (r *Redis) validateCfg() error {
 	if r.Host == "" {
 		return fmt.Errorf("redis host is empty")
 	}
+
 	if r.Port == "" {
 		return fmt.Errorf("redis port is empty")
 	}
+
 	return nil
 }

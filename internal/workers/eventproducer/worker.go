@@ -9,6 +9,8 @@ import (
 	"github.com/njohanne/testRiDom/internal/model"
 )
 
+const timeout = 2000
+
 type Worker struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -40,9 +42,10 @@ func (w *Worker) Start() {
 					log.Printf("failed to send event: %v", err)
 				}
 			}
+
+			time.Sleep(time.Duration(rand.Intn(timeout)) * time.Millisecond)
 		}
 	}()
-
 }
 
 func (w *Worker) Stop() {
@@ -68,10 +71,6 @@ func (w *Worker) generateEvent() model.Event {
 		"system_event",
 		"transaction",
 		"notification",
-		"data_change",
-		"error",
-		"info",
-		"warning",
 	}
 
 	messages := []string{
@@ -88,11 +87,12 @@ func (w *Worker) generateEvent() model.Event {
 	}
 
 	event := model.Event{
-		ProcessingTime: time.Now().Add(time.Duration(rand.Intn(86400)) * time.Second),
-		EventName:      eventNames[rand.Intn(len(eventNames))],
-		EventType:      eventTypes[rand.Intn(len(eventTypes))],
-		EventNumber:    rand.Intn(1000000) + 1,
-		EventMsg:       messages[rand.Intn(len(messages))],
+		ProcessingDuration: time.Duration(rand.Intn(1000)) * time.Millisecond,
+		CreatedAt:          time.Now(),
+		EventName:          eventNames[rand.Intn(len(eventNames))],
+		EventType:          eventTypes[rand.Intn(len(eventTypes))],
+		EventNumber:        rand.Intn(1000000) + 1,
+		EventMsg:           messages[rand.Intn(len(messages))],
 	}
 
 	return event

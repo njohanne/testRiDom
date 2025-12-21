@@ -2,13 +2,15 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/njohanne/testRiDom/internal/config"
 	"github.com/njohanne/testRiDom/internal/model"
-	"github.com/redis/go-redis/v9"
 )
 
 type Repository struct {
@@ -38,6 +40,36 @@ func (r *Repository) Close() {
 	_ = r.client.Close()
 }
 
-func (r *Repository) SaveEvent(msg model.Event) error {
+func (r *Repository) SaveEvent(ctx context.Context, msg *model.Event, taskKey string) error {
+	eventJSON, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	err = r.client.Set(ctx, taskKey, eventJSON, 0).Err()
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (r *Repository) GetEvent(ctx context.Context, taskKey string) (*model.Event, error) {
+	eventJSON, err := r.client.Get(ctx, taskKey).Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var event model.Event
+
+	err = json.Unmarshal(eventJSON, &event)
+	if err != nil {
+		return nil, err
+	}
+
+	return &event, nil
+}
+
+func (r *Repository) DeleteEvent(ctx context.Context, taskKey string) error {
+	return r.client.Del(ctx, taskKey).Err()
 }

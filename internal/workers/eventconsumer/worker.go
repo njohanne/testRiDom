@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/njohanne/testRiDom/internal/model"
 	"github.com/segmentio/kafka-go"
+
+	"github.com/njohanne/testRiDom/internal/model"
 )
 
 type Worker struct {
@@ -21,6 +22,7 @@ type Worker struct {
 
 func New(eventCons EventConsumer, redisRepo RedisRepo, postgresRepo PostgresRepo) *Worker {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	return &Worker{
 		ctx:       ctx,
 		cancel:    cancel,
@@ -47,6 +49,7 @@ func (w *Worker) startConsumer() {
 				if err != nil {
 					log.Printf("failed to read message: %v", err)
 				}
+
 				w.chEvents <- msg
 			}
 		}
@@ -61,26 +64,27 @@ func (w *Worker) startWorker() {
 				return
 			default:
 				for msg := range w.chEvents {
-					event, err := model.KafkaMsgToEvent(msg)
+					event, err := model.KafkaMsgToEvent(&msg)
+					taskKey := fmt.Sprintf("task:%d:%d", msg.Partition, msg.Offset)
+
 					if err != nil {
 						log.Printf("failed to convert message to event: %v", err)
 					}
 
-					err = w.postgres.SaveEvent(event)
+					err = w.postgres.SaveEvent(w.ctx, &event, taskKey)
 					if err != nil {
 						log.Printf("failed to save event: %v", err)
 					}
 
-					err = w.redis.SaveEvent(event)
+					err = w.redis.SaveEvent(w.ctx, &event, taskKey)
 					if err != nil {
 						log.Printf("failed to save event: %v", err)
 					}
 
-					err = w.eventCons.CommitMessage(w.ctx, msg)
+					err = w.eventCons.CommitMessage(w.ctx, &msg)
 					if err != nil {
 						log.Printf("failed to commit message: %v", err)
 					}
-					fmt.Println(msg)
 				}
 			}
 		}

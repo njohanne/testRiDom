@@ -8,15 +8,17 @@ import (
 )
 
 type Event struct {
-	ProcessingTime time.Time
-	EventName      string
-	EventType      string
-	EventNumber    int
-	EventMsg       string
+	ProcessingDuration time.Duration
+	CreatedAt          time.Time
+	EventName          string
+	EventType          string
+	EventNumber        int
+	EventMsg           string
 }
 
-func KafkaMsgToEvent(msgKafka kafka.Message) (Event, error) {
+func KafkaMsgToEvent(msgKafka *kafka.Message) (Event, error) {
 	event := Event{}
 	err := json.Unmarshal(msgKafka.Value, &event)
+
 	return event, err
 }

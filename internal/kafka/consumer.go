@@ -53,12 +53,14 @@ func (c *Consumer) ReadMessage(ctx context.Context) (kafka.Message, error) {
 	if c.reader == nil {
 		return kafka.Message{}, fmt.Errorf("failed to kafka reader is nil")
 	}
+
 	return c.reader.ReadMessage(ctx)
 }
 
-func (c *Consumer) CommitMessage(ctx context.Context, msg kafka.Message) error {
+func (c *Consumer) CommitMessage(ctx context.Context, msg *kafka.Message) error {
 	if c.reader == nil {
 		return fmt.Errorf("failed to kafka reader is nil")
 	}
-	return c.reader.CommitMessages(ctx, msg)
+
+	return c.reader.CommitMessages(ctx, *msg)
 }

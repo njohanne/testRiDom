@@ -7,10 +7,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/njohanne/testRiDom/internal/model"
 	"github.com/segmentio/kafka-go"
 
 	"github.com/njohanne/testRiDom/internal/config"
+	"github.com/njohanne/testRiDom/internal/model"
 )
 
 const defaultTimeout = time.Second * 10
@@ -53,6 +53,7 @@ func (p *Producer) SendMessage(message *model.Event) error {
 	if p.writer == nil {
 		return fmt.Errorf("failed to kafka producer has not been initialized")
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
