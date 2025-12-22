@@ -9,7 +9,7 @@ import (
 	"github.com/njohanne/testRiDom/internal/model"
 )
 
-const timeout = 2000
+const timeout = 50
 
 type Worker struct {
 	ctx    context.Context
@@ -87,7 +87,7 @@ func (w *Worker) generateEvent() model.Event {
 	}
 
 	event := model.Event{
-		ProcessingDuration: time.Duration(rand.Intn(1000)) * time.Millisecond,
+		ProcessingDuration: time.Duration(rand.Intn(100)) * time.Millisecond,
 		CreatedAt:          time.Now(),
 		EventName:          eventNames[rand.Intn(len(eventNames))],
 		EventType:          eventTypes[rand.Intn(len(eventTypes))],

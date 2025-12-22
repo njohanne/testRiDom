@@ -42,7 +42,7 @@ func (w *Worker) Start() {
 
 				event, err := w.Redis.GetEvent(w.ctx, taskKey)
 				if err != nil {
-					fmt.Printf("GetEvent err: %v\n", err)
+					fmt.Printf("GetEvent: %v\n", err)
 				}
 
 				fmt.Println("Sleeping... ", event.ProcessingDuration)

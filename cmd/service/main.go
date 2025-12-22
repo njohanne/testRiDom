@@ -30,20 +30,6 @@ func main() {
 		panic(err)
 	}
 
-	prod := kafka.NewProducer(cfg.Kafka)
-
-	err = prod.Connect()
-	if err != nil {
-		panic(err)
-	}
-	defer prod.Close()
-
-	cons := kafka.NewConsumer(cfg.Kafka)
-	if err = cons.Connect(); err != nil {
-		panic(err)
-	}
-	defer cons.Close()
-
 	post, err := postgres.NewRepository(&cfg.Postgres)
 	if err != nil {
 		panic(err)
@@ -56,12 +42,42 @@ func main() {
 	}
 	defer red.Close()
 
+	prod := kafka.NewProducer(cfg.Kafka)
+
+	err = prod.Connect()
+	if err != nil {
+		panic(err)
+	}
+	defer prod.Close()
+
+	consNun := 1
+	consWorkers := make([]*eventconsumer.Worker, consNun)
+
+	for i := 0; i < consNun; i++ {
+		cons := kafka.NewConsumer(cfg.Kafka)
+		if err = cons.Connect(); err != nil {
+			panic(err)
+		}
+		defer cons.Close()
+
+		consWorkers[i] = eventconsumer.New(cons, red, post)
+	}
+
+	//cons := kafka.NewConsumer(cfg.Kafka)
+	//if err = cons.Connect(); err != nil {
+	//	panic(err)
+	//}
+	//defer cons.Close()
+
 	workerPrd := eventproducer.New(prod)
 
 	workerPrd.Start()
 
-	workerCons := eventconsumer.New(cons, red, post)
-	workerCons.Start()
+	for _, cons := range consWorkers {
+		cons.Start()
+	}
+	//workerCons := eventconsumer.New(cons, red, post)
+	//workerCons.Start()
 
 	fmt.Println("Start workers...")
 
@@ -86,7 +102,9 @@ func main() {
 	<-shutdownChan
 	wg.Wait()
 	workerPrd.Stop()
-	workerCons.Stop()
+	for _, cons := range consWorkers {
+		cons.Stop()
+	}
 	taskWorker.Stop()
 	close(shutdownChan)
 	signal.Stop(osSigChan)

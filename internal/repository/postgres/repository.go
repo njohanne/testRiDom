@@ -48,7 +48,7 @@ func (r *Repository) SaveEvent(ctx context.Context, msg *model.Event, taskKey st
 	return err
 }
 
-///// Для воркера
+///// Для таск воркера
 
 func (r *Repository) UpdateEventForTaskKey(ctx context.Context, taskKey, status string) error {
 	sqlString, args, err := sq.Update("event_logs").

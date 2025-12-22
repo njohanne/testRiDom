@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/segmentio/kafka-go"
 
@@ -13,6 +14,7 @@ import (
 type Worker struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 
 	chEvents  chan kafka.Message
 	eventCons EventConsumer
@@ -26,6 +28,7 @@ func New(eventCons EventConsumer, redisRepo RedisRepo, postgresRepo PostgresRepo
 	return &Worker{
 		ctx:       ctx,
 		cancel:    cancel,
+		wg:        sync.WaitGroup{},
 		chEvents:  make(chan kafka.Message),
 		eventCons: eventCons,
 		redis:     redisRepo,
@@ -39,7 +42,14 @@ func (w *Worker) Start() {
 }
 
 func (w *Worker) startConsumer() {
+	w.wg.Add(1)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Consumer recovered from panic: %v", r)
+			}
+			w.wg.Done()
+		}()
 		for {
 			select {
 			case <-w.ctx.Done():
@@ -57,34 +67,41 @@ func (w *Worker) startConsumer() {
 }
 
 func (w *Worker) startWorker() {
+	w.wg.Add(1)
 	go func() {
+		defer w.wg.Done()
 		for {
 			select {
 			case <-w.ctx.Done():
 				return
-			default:
-				for msg := range w.chEvents {
-					event, err := model.KafkaMsgToEvent(&msg)
-					taskKey := fmt.Sprintf("task:%d:%d", msg.Partition, msg.Offset)
+			case msg, ok := <-w.chEvents:
+				if !ok {
+					return
+				}
 
-					if err != nil {
-						log.Printf("failed to convert message to event: %v", err)
-					}
+				event, err := model.KafkaMsgToEvent(&msg)
+				taskKey := fmt.Sprintf("task:%d:%d", msg.Partition, msg.Offset)
 
-					err = w.postgres.SaveEvent(w.ctx, &event, taskKey)
-					if err != nil {
-						log.Printf("failed to save event: %v", err)
-					}
+				if err != nil {
+					log.Printf("failed to convert message to event: %v", err)
+					return
+				}
 
-					err = w.redis.SaveEvent(w.ctx, &event, taskKey)
-					if err != nil {
-						log.Printf("failed to save event: %v", err)
-					}
+				err = w.postgres.SaveEvent(w.ctx, &event, taskKey)
+				if err != nil {
+					log.Printf("failed to save event: %v", err)
+					return
+				}
 
-					err = w.eventCons.CommitMessage(w.ctx, &msg)
-					if err != nil {
-						log.Printf("failed to commit message: %v", err)
-					}
+				err = w.redis.SaveEvent(w.ctx, &event, taskKey)
+				if err != nil {
+					log.Printf("failed to save event: %v", err)
+				}
+
+				err = w.eventCons.CommitMessage(w.ctx, &msg)
+				if err != nil {
+					log.Printf("failed to commit message: %v", err)
+
 				}
 			}
 		}
@@ -93,4 +110,6 @@ func (w *Worker) startWorker() {
 
 func (w *Worker) Stop() {
 	w.cancel()
+	w.wg.Wait()
+	close(w.chEvents)
 }
