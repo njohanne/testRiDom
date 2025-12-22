@@ -50,7 +50,7 @@ func main() {
 	}
 	defer prod.Close()
 
-	consNun := 1
+	consNun := 2
 	consWorkers := make([]*eventconsumer.Worker, consNun)
 
 	for i := 0; i < consNun; i++ {
@@ -63,12 +63,6 @@ func main() {
 		consWorkers[i] = eventconsumer.New(cons, red, post)
 	}
 
-	//cons := kafka.NewConsumer(cfg.Kafka)
-	//if err = cons.Connect(); err != nil {
-	//	panic(err)
-	//}
-	//defer cons.Close()
-
 	workerPrd := eventproducer.New(prod)
 
 	workerPrd.Start()
@@ -76,8 +70,6 @@ func main() {
 	for _, cons := range consWorkers {
 		cons.Start()
 	}
-	//workerCons := eventconsumer.New(cons, red, post)
-	//workerCons.Start()
 
 	fmt.Println("Start workers...")
 
