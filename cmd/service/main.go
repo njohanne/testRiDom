@@ -102,9 +102,11 @@ func main() {
 	<-shutdownChan
 	wg.Wait()
 	workerPrd.Stop()
+
 	for _, cons := range consWorkers {
 		cons.Stop()
 	}
+
 	taskWorker.Stop()
 	close(shutdownChan)
 	signal.Stop(osSigChan)

@@ -43,13 +43,16 @@ func (w *Worker) Start() {
 
 func (w *Worker) startConsumer() {
 	w.wg.Add(1)
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("Consumer recovered from panic: %v", r)
 			}
+
 			w.wg.Done()
 		}()
+
 		for {
 			select {
 			case <-w.ctx.Done():
@@ -68,8 +71,10 @@ func (w *Worker) startConsumer() {
 
 func (w *Worker) startWorker() {
 	w.wg.Add(1)
+
 	go func() {
 		defer w.wg.Done()
+
 		for {
 			select {
 			case <-w.ctx.Done():
@@ -101,7 +106,6 @@ func (w *Worker) startWorker() {
 				err = w.eventCons.CommitMessage(w.ctx, &msg)
 				if err != nil {
 					log.Printf("failed to commit message: %v", err)
-
 				}
 			}
 		}
